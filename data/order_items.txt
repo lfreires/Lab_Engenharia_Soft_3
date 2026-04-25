@@ -1,0 +1,4 @@
+{"order_id": "d73b0f7d-e12d-49f5-b70c-709fc5d91cbf", "book_id": "livro-001", "title": "Engenharia de Software na Pratica", "quantity": 2, "unit_price": 89.9}
+{"order_id": "c6ede098-90c5-4683-9141-716bc0586247", "book_id": "livro-001", "title": "Engenharia de Software na Pratica", "quantity": 1, "unit_price": 89.9}
+{"order_id": "a7bab301-7d10-4c4d-aafe-aa21b69e6938", "book_id": "ddcbe2e7-cce5-4146-b6b0-1158178fe602", "title": "Teste", "quantity": 1, "unit_price": 12.0}
+{"order_id": "a7bab301-7d10-4c4d-aafe-aa21b69e6938", "book_id": "livro-001", "title": "Engenharia de Software na Pratica", "quantity": 2, "unit_price": 89.9}

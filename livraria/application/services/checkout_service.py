@@ -98,5 +98,3 @@ class CheckoutService:
         discounted = coupon.apply(cart_total)
         return discounted, round(cart_total - discounted, 2)
 
-    def list_orders(self) -> list[Order]:
-        return self._orders.all()

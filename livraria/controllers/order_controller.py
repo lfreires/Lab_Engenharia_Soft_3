@@ -11,6 +11,3 @@ class OrderController:
 
     def preview_discount(self, cart_total: float, coupon_code: str) -> tuple[float, float]:
         return self._service.preview_discount(cart_total, coupon_code)
-
-    def list_orders(self) -> list[Order]:
-        return self._service.list_orders()

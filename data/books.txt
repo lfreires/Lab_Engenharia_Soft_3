@@ -1,1 +1,2 @@
-{"id": "livro-001", "title": "Engenharia de Software na Pratica", "price": 89.9, "stock": 10}
+{"id": "livro-001", "title": "Engenharia de Software na Pratica", "price": 89.9, "stock": 5}
+{"id": "ddcbe2e7-cce5-4146-b6b0-1158178fe602", "title": "Teste", "price": 12.0, "stock": 11}
