@@ -1,3 +1,0 @@
-{"order_id": "650fba32-dc74-43df-a156-2f35b76ebef0", "book_id": "livro-001", "title": "Engenharia de Software na Pratica", "quantity": 2, "unit_price": 89.9}
-{"order_id": "1382cd2c-8e1f-4625-a984-ba051b13102e", "book_id": "livro-001", "title": "Engenharia de Software na Pratica", "quantity": 2, "unit_price": 89.9}
-{"order_id": "5dfd20a6-da48-4d1f-8e37-336f7d060689", "book_id": "livro-001", "title": "Engenharia de Software na Pratica", "quantity": 1, "unit_price": 89.9}

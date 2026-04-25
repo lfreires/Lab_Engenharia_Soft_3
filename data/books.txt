@@ -1,1 +1,1 @@
-{"id": "livro-001", "title": "Engenharia de Software na Pratica", "price": 89.9, "stock": 7}
+{"id": "livro-001", "title": "Engenharia de Software na Pratica", "price": 89.9, "stock": 10}

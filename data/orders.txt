@@ -1,3 +1,0 @@
-{"id": "650fba32-dc74-43df-a156-2f35b76ebef0", "total": 161.82, "status": "created", "coupon_code": "DESC10"}
-{"id": "1382cd2c-8e1f-4625-a984-ba051b13102e", "total": 161.82, "status": "created", "coupon_code": "DESC10"}
-{"id": "5dfd20a6-da48-4d1f-8e37-336f7d060689", "total": 80.91, "status": "created", "coupon_code": "DESC10"}

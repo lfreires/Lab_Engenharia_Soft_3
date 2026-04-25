@@ -1,28 +1,64 @@
 # Livraria — Lab Engenharia de Software
 
-Sistema de livraria desenvolvido em Python puro, seguindo **Clean Architecture** com persistência em arquivos TXT (JSON Lines) e aplicação do **Princípio de Inversão de Dependência (DIP)**.
+Sistema de livraria em Python puro, implementado com **Clean Architecture**, persistência em **arquivos TXT** (JSON Lines) e **DIP** (Princípio de Inversão de Dependência).
+
+---
+
+## Pré-requisito
+
+Python 3.10 ou superior. Sem dependências externas — usa apenas a biblioteca padrão.
 
 ---
 
 ## Como rodar
 
-**Pré-requisito:** Python 3.10+ (sem dependências externas — apenas biblioteca padrão)
-
 ```bash
-# Demo via console — fluxo completo automatizado + seed de dados
-python example.py
-
-# Interface gráfica (Tkinter)
 python app.py
 ```
 
-O diretório `data/` é criado automaticamente na primeira execução com os arquivos TXT de persistência. O usuário `admin` (senha `123456`) e o cupom `DESC10` (10% de desconto) são criados automaticamente — nenhuma configuração manual é necessária.
+Isso é tudo. Na primeira execução o sistema cria o diretório `data/` com todos os arquivos de persistência e já popula os dados de teste abaixo.
+
+---
+
+## Credenciais e dados de teste (criados automaticamente)
+
+| Dado | Valor |
+|---|---|
+| Usuário | `admin` |
+| Senha | `123456` |
+| Livro disponível | "Engenharia de Software na Pratica" — R$ 89,90 — estoque 10 |
+| Cupom de desconto | `DESC10` — 10% de desconto — uso ilimitado |
+
+> Para testar o desconto: adicione o livro ao carrinho, coloque o código `DESC10` no campo Cupom e clique em Finalizar. O total de 2 unidades passa de R$ 179,80 para R$ 161,82.
+
+---
+
+## Interface gráfica
+
+| Tela | O que faz |
+|---|---|
+| **Login** | Entrada com usuário e senha. Link para criar conta. |
+| **Registro** | Cadastra novo usuário com confirmação de senha. |
+| **Principal** | Lista livros com preço e estoque em tempo real. |
+| **Cadastrar livro** | Formulário inline para adicionar novos livros. |
+| **Carrinho** | Itens com subtotais; botão para remover item. |
+| **Checkout** | Escolha de pagamento (Pix / Cartão / Dinheiro) + campo de cupom com preview instantâneo do desconto (verde = válido, vermelho = inválido). |
+
+---
+
+## Demo via console
+
+```bash
+python example.py
+```
+
+Executa o fluxo completo no terminal: login → criar livro → adicionar ao carrinho → checkout com cupom → exibe pedido e estoque restante.
 
 ---
 
 ## Arquitetura
 
-O projeto segue **Clean Architecture** (arquitetura de círculos concêntricos). A regra central é a **Dependency Rule**: o código-fonte só pode apontar para dentro — camadas internas jamais conhecem camadas externas.
+O projeto segue **Clean Architecture** (círculos concêntricos de Uncle Bob). A regra central é a **Dependency Rule**: dependências sempre apontam para dentro — camadas internas nunca conhecem as externas.
 
 ```
 ╔══════════════════════════════════════════════════════╗
@@ -37,13 +73,12 @@ O projeto segue **Clean Architecture** (arquitetura de círculos concêntricos).
 ║  │  └──────────────────────────────────────────┘  │  ║
 ║  └────────────────────────────────────────────────┘  ║
 ╚══════════════════════════════════════════════════════╝
-        Infraestrutura (infrastructure/) implementa
-        os Ports definidos no Domínio
+        infrastructure/ implementa os Ports do domínio
 ```
 
 ### DIP — Princípio de Inversão de Dependência
 
-Os serviços de aplicação **não importam** implementações concretas de repositórios. Eles dependem de interfaces (ports) definidas no próprio domínio:
+Os serviços de aplicação não importam implementações concretas. Eles dependem de interfaces (ports) definidas dentro do próprio domínio:
 
 ```
 TxtBookRepository  →  implementa  →  IBookRepository   (domain/ports)
@@ -51,92 +86,59 @@ BookService        →  depende de  →  IBookRepository   (domain/ports)
 app.py             →  injeta TxtBookRepository onde BookService espera IBookRepository
 ```
 
-O núcleo do sistema (domínio + aplicação) é completamente independente de tecnologia de persistência. Trocar TXT por banco de dados ou outro mecanismo não exige alterar nenhum service, nenhum modelo de domínio.
-
-### Fluxo de dependências
-
-```mermaid
-graph TD
-    A["Frameworks & Drivers\nviews/ · app.py · example.py"]
-    B["Interface Adapters\ncontrollers/"]
-    C["Use Cases\napplication/services/"]
-    D["Entities\ndomain/models/"]
-    E["Ports (interfaces)\ndomain/ports/"]
-    F["Infrastructure\ninfrastructure/repositories_txt/\ninfrastructure/unit_of_work_txt.py"]
-
-    A -->|delega| B
-    B -->|orquestra| C
-    C -->|usa tipos de| D
-    C -->|depende de| E
-    F -->|implementa| E
-    F -->|usa tipos de| D
-    A -->|injeta F em C via| B
-```
+O núcleo (domínio + serviços) é independente de tecnologia de persistência. Trocar TXT por banco de dados não exige alterar nenhum modelo nem nenhum service — só a infraestrutura e o composition root.
 
 ### Responsabilidades por camada
 
-| Camada | Localização | Responsabilidade | Proibido |
+| Camada | Onde fica | O que faz | Proibido |
 |---|---|---|---|
-| **Entities** | `domain/models/` | Regras de negócio puras, validações | Qualquer import externo ao domínio |
+| **Entities** | `domain/models/` | Regras de negócio, validações | Qualquer import fora do domínio |
 | **Ports** | `domain/ports/` | Interfaces ABC para repositórios e UoW | Imports de infra ou aplicação |
-| **Use Cases** | `application/services/` | Orquestra casos de uso usando ports | Imports de `infrastructure/` |
-| **Interface Adapters** | `controllers/` | Delega chamadas da view para services | Lógica de negócio, acesso a dados |
-| **Infrastructure** | `infrastructure/` | Implementa os ports com arquivos TXT | Imports de `application/` |
-| **Drivers** | `views/`, `app.py` | UI Tkinter/console, composition root | (pode importar qualquer camada) |
+| **Use Cases** | `application/services/` | Orquestra casos de uso via ports | Imports de `infrastructure/` |
+| **Interface Adapters** | `controllers/` | Delega view → service, service → view | Lógica de negócio, acesso a dados |
+| **Infrastructure** | `infrastructure/` | Implementa os ports (lê/escreve TXT) | Imports de `application/` |
+| **Frameworks & Drivers** | `views/`, `app.py` | UI Tkinter/console, composition root | — |
 
 ### Composition root — `app.py`
 
-`app.py` é o único lugar onde as implementações concretas são conhecidas. Toda a cadeia de dependências é montada aqui e injetada de baixo para cima:
+`app.py` é o único arquivo que conhece todas as implementações concretas. Ele monta a cadeia de dependências de baixo para cima e injeta tudo na view:
 
-```mermaid
-graph BT
-    D[/"data/*.txt"/]
-    D --> UR[TxtUserRepository]
-    D --> BR[TxtBookRepository]
-    D --> CR[TxtCartRepository]
-    D --> ORR[TxtOrderRepository]
-    D --> PRR[TxtPaymentRepository]
-    D --> CPR[TxtCouponRepository]
-    D --> UOW[TxtUnitOfWork]
-    UR --> AS[AuthService]
-    BR & CR --> CS[CartService]
-    BR --> BS[BookService]
-    ORR & PRR & CPR & BR & CR & UOW --> CKS[CheckoutService]
-    AS --> AC[AuthController]
-    BS --> BC[BookController]
-    CS --> CC[CartController]
-    CKS --> OC[OrderController]
-    AC & BC & CC & OC --> V[TkApp]
+```
+data/*.txt
+  → TxtXxxRepository  (implementa IXxxRepository)
+  → XxxService        (recebe IXxxRepository)
+  → XxxController     (recebe XxxService)
+  → TkApp             (recebe os controllers)
 ```
 
 ---
 
 ## Persistência em TXT (JSON Lines)
 
-Cada entidade é armazenada em um arquivo `.txt` no diretório `data/`, com um objeto JSON por linha:
+Cada entidade é armazenada em um arquivo `.txt` dentro de `data/`. Cada linha é um objeto JSON independente:
 
-| Arquivo | Conteúdo (exemplo de linha) |
+| Arquivo | Exemplo de linha |
 |---|---|
-| `data/users.txt` | `{"username": "admin", "password_hash": "8d9..."}` |
-| `data/books.txt` | `{"id": "livro-001", "title": "Engenharia...", "price": 89.9, "stock": 8}` |
-| `data/carts.txt` | `{"id": "uuid-do-carrinho"}` |
-| `data/cart_items.txt` | `{"cart_id": "...", "book_id": "...", "title": "...", "quantity": 2, "unit_price": 89.9}` |
-| `data/coupons.txt` | `{"code": "DESC10", "discount_pct": 10.0, "active": true, "single_use": false, "used": false}` |
-| `data/orders.txt` | `{"id": "...", "total": 161.82, "status": "created", "coupon_code": "DESC10"}` |
-| `data/order_items.txt` | `{"order_id": "...", "book_id": "...", "title": "...", "quantity": 2, "unit_price": 89.9}` |
-| `data/payments.txt` | `{"order_id": "...", "amount": 161.82, "method": "pix", "status": "approved"}` |
+| `users.txt` | `{"username": "admin", "password_hash": "8d969..."}` |
+| `books.txt` | `{"id": "livro-001", "title": "Engenharia...", "price": 89.9, "stock": 10}` |
+| `carts.txt` | `{"id": "uuid-do-carrinho"}` |
+| `cart_items.txt` | `{"cart_id": "...", "book_id": "...", "title": "...", "quantity": 2, "unit_price": 89.9}` |
+| `coupons.txt` | `{"code": "DESC10", "discount_pct": 10.0, "active": true, "single_use": false, "used": false}` |
+| `orders.txt` | `{"id": "...", "total": 161.82, "status": "created", "coupon_code": "DESC10"}` |
+| `order_items.txt` | `{"order_id": "...", "book_id": "...", "title": "...", "quantity": 2, "unit_price": 89.9}` |
+| `payments.txt` | `{"order_id": "...", "amount": 161.82, "method": "pix", "status": "approved"}` |
 
 ### Atomicidade — TxtUnitOfWork
 
-O checkout coordena 5 operações em arquivos distintos. A atomicidade é garantida por **snapshot em memória**:
+O checkout coordena 5 operações em arquivos distintos. A atomicidade é garantida por snapshot em memória:
 
 ```
-begin()    → lê todos os TXT para memória (snapshot)
-commit()   → descarta o snapshot (mudanças são definitivas)
-rollback() → restaura os arquivos a partir do snapshot
+begin()    → salva o conteúdo atual de todos os TXT em memória
+commit()   → descarta o snapshot (mudanças tornam-se definitivas)
+rollback() → restaura todos os arquivos a partir do snapshot salvo
 ```
 
-Qualquer erro durante o checkout restaura todos os arquivos ao estado anterior — equivalente ao `BEGIN/COMMIT/ROLLBACK` de um banco relacional.
+Se qualquer passo falhar, todos os arquivos voltam ao estado anterior ao checkout — equivalente a um `BEGIN / COMMIT / ROLLBACK` de banco relacional.
 
 ---
 
@@ -145,15 +147,11 @@ Qualquer erro durante o checkout restaura todos os arquivos ao estado anterior �
 ```
 app.py                                  # Entry point — GUI Tkinter (composition root)
 example.py                              # Entry point — demo CLI + seed
-data/                                   # Criado automaticamente — persistência TXT
-  users.txt
-  books.txt
-  carts.txt · cart_items.txt
-  coupons.txt
-  orders.txt · order_items.txt
-  payments.txt
+data/                                   # Criado automaticamente na 1ª execução
+  users.txt · books.txt · carts.txt
+  cart_items.txt · coupons.txt
+  orders.txt · order_items.txt · payments.txt
 livraria/
-  __init__.py
   domain/
     models/
       user.py                           # User: validate(), hash_password()
@@ -175,9 +173,9 @@ livraria/
   infrastructure/
     repositories_txt/
       txt_store.py                      # Helper de I/O: read_all, write_all, append
-      user_repository.py                # TxtUserRepository implements IUserRepository
-      book_repository.py                # TxtBookRepository implements IBookRepository
-      cart_repository.py                # TxtCartRepository implements ICartRepository
+      user_repository.py                # TxtUserRepository  implements IUserRepository
+      book_repository.py                # TxtBookRepository  implements IBookRepository
+      cart_repository.py                # TxtCartRepository  implements ICartRepository
       order_repository.py               # TxtOrderRepository implements IOrderRepository
       payment_repository.py             # TxtPaymentRepository implements IPaymentRepository
       coupon_repository.py              # TxtCouponRepository implements ICouponRepository
@@ -252,30 +250,3 @@ Usuário digita no campo "Cupom" (trace no StringVar do Tkinter)
           → retorna (total_descontado, economia)
 View atualiza total instantaneamente (verde = válido, vermelho = inválido)
 ```
-
----
-
-## Interface gráfica
-
-Ao rodar `python app.py`:
-
-| Tela | Descrição |
-|---|---|
-| **Login** | Entrada com usuário e senha. Link para tela de registro. |
-| **Registro** | Formulário com usuário, senha e confirmação. |
-| **Principal** | Lista de livros disponíveis com preço e estoque. |
-| **Cadastrar livro** | Formulário inline (título, preço, estoque). |
-| **Carrinho** | Itens com subtotais e total em tempo real. |
-| **Checkout** | Método de pagamento (Pix/Cartão/Dinheiro) + campo de cupom com preview instantâneo do desconto. |
-
----
-
-## Dados criados automaticamente
-
-| Dado | Valor |
-|---|---|
-| Usuário | `admin` |
-| Senha | `123456` |
-| Cupom | `DESC10` — 10% de desconto — uso ilimitado |
-
-O `example.py` também adiciona o livro "Engenharia de Software na Pratica" (R$ 89,90, estoque 10) e realiza um checkout completo com o cupom `DESC10`, resultando em total de R$ 161,82.

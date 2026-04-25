@@ -19,9 +19,13 @@ from livraria.views.tk_view import TkApp
 DATA_DIR = Path(os.path.dirname(os.path.abspath(__file__))) / "data"
 
 
-def _seed(auth_svc: AuthService, coupon_repo: TxtCouponRepository) -> None:
+def _seed(auth_svc: AuthService, book_svc: BookService, coupon_repo: TxtCouponRepository) -> None:
     if not auth_svc.exists("admin"):
         auth_svc.register("admin", "123456")
+    try:
+        book_svc.get_stock("livro-001")
+    except KeyError:
+        book_svc.create("Engenharia de Software na Pratica", 89.90, 10, book_id="livro-001")
     if coupon_repo.find("DESC10") is None:
         coupon_repo.save(Coupon(code="DESC10", discount_pct=10.0, active=True, single_use=False, used=False))
 
@@ -42,7 +46,7 @@ def main() -> None:
     cart_svc     = CartService(cart_repo, book_repo)
     checkout_svc = CheckoutService(book_repo, cart_repo, order_repo, payment_repo, coupon_repo, uow)
 
-    _seed(auth_svc, coupon_repo)
+    _seed(auth_svc, book_svc, coupon_repo)
 
     auth_ctrl  = AuthController(auth_svc)
     book_ctrl  = BookController(book_svc)
