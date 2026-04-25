@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from livraria.domain.models.user import User
-from livraria.infrastructure.repositories.user_repository import UserRepository
+from livraria.domain.ports.repositories import IUserRepository
 
 
 class AuthService:
-    def __init__(self, user_repo: UserRepository) -> None:
+    def __init__(self, user_repo: IUserRepository) -> None:
         self._repo = user_repo
 
     def register(self, username: str, password: str) -> None:

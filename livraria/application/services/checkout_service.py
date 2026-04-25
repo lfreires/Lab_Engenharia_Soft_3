@@ -4,23 +4,25 @@ from uuid import uuid4
 
 from livraria.domain.models.order import Order, OrderItem
 from livraria.domain.models.payment import Payment
-from livraria.infrastructure.repositories.book_repository import BookRepository
-from livraria.infrastructure.repositories.cart_repository import CartRepository
-from livraria.infrastructure.repositories.coupon_repository import CouponRepository
-from livraria.infrastructure.repositories.order_repository import OrderRepository
-from livraria.infrastructure.repositories.payment_repository import PaymentRepository
-from livraria.infrastructure.unit_of_work import UnitOfWork
+from livraria.domain.ports.repositories import (
+    IBookRepository,
+    ICartRepository,
+    ICouponRepository,
+    IOrderRepository,
+    IPaymentRepository,
+)
+from livraria.domain.ports.unit_of_work import IUnitOfWork
 
 
 class CheckoutService:
     def __init__(
         self,
-        book_repo: BookRepository,
-        cart_repo: CartRepository,
-        order_repo: OrderRepository,
-        payment_repo: PaymentRepository,
-        coupon_repo: CouponRepository,
-        uow: UnitOfWork,
+        book_repo: IBookRepository,
+        cart_repo: ICartRepository,
+        order_repo: IOrderRepository,
+        payment_repo: IPaymentRepository,
+        coupon_repo: ICouponRepository,
+        uow: IUnitOfWork,
     ) -> None:
         self._books = book_repo
         self._carts = cart_repo
@@ -65,14 +67,14 @@ class CheckoutService:
         try:
             self._uow.begin()
             for item in cart.items:
-                self._books.reserve_stock(item.book_id, item.quantity, commit=False)
+                self._books.reserve_stock(item.book_id, item.quantity)
             self._orders.save(order_id, total, "created", coupon_code)
             self._orders.save_items(order_id, order_items)
             payment = Payment(order_id=order_id, amount=total, method=payment_method, status="approved")
-            self._payments.save(payment, commit=False)
+            self._payments.save(payment)
             if coupon and coupon.single_use:
-                self._coupons.mark_used(coupon_code, commit=False)
-            self._carts.clear(cart_id, commit=False)
+                self._coupons.mark_used(coupon_code)
+            self._carts.clear(cart_id)
             self._uow.commit()
         except Exception:
             self._uow.rollback()

@@ -1,0 +1,1 @@
+{"code": "DESC10", "discount_pct": 10.0, "active": true, "single_use": false, "used": false}

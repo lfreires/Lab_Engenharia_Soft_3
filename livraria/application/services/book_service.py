@@ -3,11 +3,11 @@ from __future__ import annotations
 from uuid import uuid4
 
 from livraria.domain.models.book import Book
-from livraria.infrastructure.repositories.book_repository import BookRepository
+from livraria.domain.ports.repositories import IBookRepository
 
 
 class BookService:
-    def __init__(self, book_repo: BookRepository) -> None:
+    def __init__(self, book_repo: IBookRepository) -> None:
         self._repo = book_repo
 
     def create(self, title: str, price: float, stock: int, book_id: str | None = None) -> Book:

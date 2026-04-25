@@ -1,6 +1,6 @@
 # Livraria — Lab Engenharia de Software
 
-Sistema de livraria desenvolvido em Python com persistência SQLite, seguindo arquitetura **multicamadas (N-Tier)** com 4 camadas bem definidas.
+Sistema de livraria desenvolvido em Python puro, seguindo **Clean Architecture** com persistência em arquivos TXT (JSON Lines) e aplicação do **Princípio de Inversão de Dependência (DIP)**.
 
 ---
 
@@ -9,114 +9,95 @@ Sistema de livraria desenvolvido em Python com persistência SQLite, seguindo ar
 **Pré-requisito:** Python 3.10+ (sem dependências externas — apenas biblioteca padrão)
 
 ```bash
-# Interface gráfica (Tkinter)
-python app.py
-
 # Demo via console — fluxo completo automatizado + seed de dados
 python example.py
+
+# Interface gráfica (Tkinter)
+python app.py
 ```
 
-O arquivo `livraria.db` é criado automaticamente na raiz do projeto na primeira execução.
-
-Na primeira vez que `app.py` é executado, o sistema cria automaticamente o usuário `admin` (senha `123456`) e o cupom `DESC10` (10% de desconto) caso ainda não existam no banco — não é necessário nenhum passo manual de configuração.
+O diretório `data/` é criado automaticamente na primeira execução com os arquivos TXT de persistência. O usuário `admin` (senha `123456`) e o cupom `DESC10` (10% de desconto) são criados automaticamente — nenhuma configuração manual é necessária.
 
 ---
 
 ## Arquitetura
 
-O projeto segue uma **arquitetura multicamadas (N-Tier) com 4 camadas**. A regra central é: **nenhuma camada importa uma camada acima dela**. O Domínio não conhece ninguém — todas as outras camadas podem depender dele, mas ele nunca depende delas.
+O projeto segue **Clean Architecture** (arquitetura de círculos concêntricos). A regra central é a **Dependency Rule**: o código-fonte só pode apontar para dentro — camadas internas jamais conhecem camadas externas.
 
-### Dependências entre camadas
+```
+╔══════════════════════════════════════════════════════╗
+║  Frameworks & Drivers  (views/, app.py, example.py) ║
+║  ┌────────────────────────────────────────────────┐  ║
+║  │  Interface Adapters  (controllers/)            │  ║
+║  │  ┌──────────────────────────────────────────┐  │  ║
+║  │  │  Use Cases  (application/services/)      │  │  ║
+║  │  │  ┌────────────────────────────────────┐  │  │  ║
+║  │  │  │  Entities + Ports  (domain/)       │  │  │  ║
+║  │  │  └────────────────────────────────────┘  │  │  ║
+║  │  └──────────────────────────────────────────┘  │  ║
+║  └────────────────────────────────────────────────┘  ║
+╚══════════════════════════════════════════════════════╝
+        Infraestrutura (infrastructure/) implementa
+        os Ports definidos no Domínio
+```
+
+### DIP — Princípio de Inversão de Dependência
+
+Os serviços de aplicação **não importam** implementações concretas de repositórios. Eles dependem de interfaces (ports) definidas no próprio domínio:
+
+```
+TxtBookRepository  →  implementa  →  IBookRepository   (domain/ports)
+BookService        →  depende de  →  IBookRepository   (domain/ports)
+app.py             →  injeta TxtBookRepository onde BookService espera IBookRepository
+```
+
+O núcleo do sistema (domínio + aplicação) é completamente independente de tecnologia de persistência. Trocar TXT por banco de dados ou outro mecanismo não exige alterar nenhum service, nenhum modelo de domínio.
+
+### Fluxo de dependências
 
 ```mermaid
 graph TD
-    A["🖥️ Camada 1 — Apresentação\nConsoleView · TkApp"]
-    B["⚙️ Camada 2 — Aplicação\nControllers · Services"]
-    C["📦 Camada 3 — Domínio\nUser · Book · Cart · Order · Payment · Coupon\n(zero dependências externas)"]
-    D["🗄️ Camada 4 — Infraestrutura\nRepositories · UnitOfWork · database.py"]
+    A["Frameworks & Drivers\nviews/ · app.py · example.py"]
+    B["Interface Adapters\ncontrollers/"]
+    C["Use Cases\napplication/services/"]
+    D["Entities\ndomain/models/"]
+    E["Ports (interfaces)\ndomain/ports/"]
+    F["Infrastructure\ninfrastructure/repositories_txt/\ninfrastructure/unit_of_work_txt.py"]
 
-    A -->|delega para| B
-    B -->|aplica regras de| C
-    B -->|persiste via| D
-    D -->|retorna objetos de| C
-```
-
-> A camada 4 (Infraestrutura) depende da camada 3 (Domínio) porque os Repositories criam e retornam objetos de domínio (`Book`, `Order`, etc.). Isso **não é violação** — a dependência vai de 4 para 3, nunca o contrário. O Domínio não importa nada de infraestrutura.
-
-### Componentes por camada
-
-```mermaid
-graph LR
-    subgraph C1["Camada 1 — Apresentação"]
-        CV[ConsoleView]
-        TK[TkApp]
-    end
-
-    subgraph C2["Camada 2 — Aplicação"]
-        AC[AuthController] --> AS[AuthService]
-        BC[BookController] --> BS[BookService]
-        CC[CartController] --> CS[CartService]
-        OC[OrderController] --> CKS[CheckoutService]
-    end
-
-    subgraph C3["Camada 3 — Domínio"]
-        U[User]
-        BK[Book]
-        CA[Cart]
-        ORD[Order]
-        PM[Payment]
-        CP[Coupon]
-    end
-
-    subgraph C4["Camada 4 — Infraestrutura"]
-        UR[UserRepository]
-        BR[BookRepository]
-        CR[CartRepository]
-        ORR[OrderRepository]
-        PRR[PaymentRepository]
-        CPR[CouponRepository]
-        UOW[UnitOfWork]
-        DB[(SQLite)]
-    end
-
-    C1 --> C2
-    AS --> U
-    AS --> UR
-    BS --> BK
-    BS --> BR
-    CS --> CA
-    CS --> CR
-    CKS --> ORD & PM & CP
-    CKS --> UOW & ORR & PRR & CPR & BR & CR
-    UR & BR & CR & ORR & PRR & CPR --> DB
-    UR & BR & CR & ORR & PRR & CPR -.->|retorna| C3
+    A -->|delega| B
+    B -->|orquestra| C
+    C -->|usa tipos de| D
+    C -->|depende de| E
+    F -->|implementa| E
+    F -->|usa tipos de| D
+    A -->|injeta F em C via| B
 ```
 
 ### Responsabilidades por camada
 
-| Camada | O que faz | O que NÃO faz |
-|---|---|---|
-| **Apresentação** | Renderiza UI, captura eventos | Nenhuma regra de negócio, nenhum SQL |
-| **Aplicação** | Orquestra casos de uso (Services) | Não acessa banco diretamente |
-| **Domínio** | Valida dados, aplica regras de negócio | Não importa `sqlite3`, não conhece repos |
-| **Infraestrutura** | Todo o SQL, fábrica de conexão | Não contém lógica de negócio |
+| Camada | Localização | Responsabilidade | Proibido |
+|---|---|---|---|
+| **Entities** | `domain/models/` | Regras de negócio puras, validações | Qualquer import externo ao domínio |
+| **Ports** | `domain/ports/` | Interfaces ABC para repositórios e UoW | Imports de infra ou aplicação |
+| **Use Cases** | `application/services/` | Orquestra casos de uso usando ports | Imports de `infrastructure/` |
+| **Interface Adapters** | `controllers/` | Delega chamadas da view para services | Lógica de negócio, acesso a dados |
+| **Infrastructure** | `infrastructure/` | Implementa os ports com arquivos TXT | Imports de `application/` |
+| **Drivers** | `views/`, `app.py` | UI Tkinter/console, composition root | (pode importar qualquer camada) |
 
-> **`UnitOfWork`:** o checkout precisa de uma transação atômica que coordena 5 repositórios (estoque, pedido, pagamento, cupom e carrinho). `infrastructure/unit_of_work.py` encapsula `BEGIN/COMMIT/ROLLBACK` sem expor `sqlite3` à camada de Aplicação — mantendo a separação de camadas íntegra.
+### Composition root — `app.py`
 
-### Composição — `app.py`
-
-`app.py` funciona como **composition root**: monta toda a cadeia de dependências de baixo para cima e entrega os controllers prontos à View. Nenhuma camada instancia suas próprias dependências.
+`app.py` é o único lugar onde as implementações concretas são conhecidas. Toda a cadeia de dependências é montada aqui e injetada de baixo para cima:
 
 ```mermaid
 graph BT
-    DB[(livraria.db)]
-    DB --> UR[UserRepository]
-    DB --> BR[BookRepository]
-    DB --> CR[CartRepository]
-    DB --> ORR[OrderRepository]
-    DB --> PRR[PaymentRepository]
-    DB --> CPR[CouponRepository]
-    DB --> UOW[UnitOfWork]
+    D[/"data/*.txt"/]
+    D --> UR[TxtUserRepository]
+    D --> BR[TxtBookRepository]
+    D --> CR[TxtCartRepository]
+    D --> ORR[TxtOrderRepository]
+    D --> PRR[TxtPaymentRepository]
+    D --> CPR[TxtCouponRepository]
+    D --> UOW[TxtUnitOfWork]
     UR --> AS[AuthService]
     BR & CR --> CS[CartService]
     BR --> BS[BookService]
@@ -130,44 +111,85 @@ graph BT
 
 ---
 
+## Persistência em TXT (JSON Lines)
+
+Cada entidade é armazenada em um arquivo `.txt` no diretório `data/`, com um objeto JSON por linha:
+
+| Arquivo | Conteúdo (exemplo de linha) |
+|---|---|
+| `data/users.txt` | `{"username": "admin", "password_hash": "8d9..."}` |
+| `data/books.txt` | `{"id": "livro-001", "title": "Engenharia...", "price": 89.9, "stock": 8}` |
+| `data/carts.txt` | `{"id": "uuid-do-carrinho"}` |
+| `data/cart_items.txt` | `{"cart_id": "...", "book_id": "...", "title": "...", "quantity": 2, "unit_price": 89.9}` |
+| `data/coupons.txt` | `{"code": "DESC10", "discount_pct": 10.0, "active": true, "single_use": false, "used": false}` |
+| `data/orders.txt` | `{"id": "...", "total": 161.82, "status": "created", "coupon_code": "DESC10"}` |
+| `data/order_items.txt` | `{"order_id": "...", "book_id": "...", "title": "...", "quantity": 2, "unit_price": 89.9}` |
+| `data/payments.txt` | `{"order_id": "...", "amount": 161.82, "method": "pix", "status": "approved"}` |
+
+### Atomicidade — TxtUnitOfWork
+
+O checkout coordena 5 operações em arquivos distintos. A atomicidade é garantida por **snapshot em memória**:
+
+```
+begin()    → lê todos os TXT para memória (snapshot)
+commit()   → descarta o snapshot (mudanças são definitivas)
+rollback() → restaura os arquivos a partir do snapshot
+```
+
+Qualquer erro durante o checkout restaura todos os arquivos ao estado anterior — equivalente ao `BEGIN/COMMIT/ROLLBACK` de um banco relacional.
+
+---
+
 ## Estrutura de arquivos
 
 ```
-app.py                              # Entry point — interface gráfica (composition root)
-example.py                          # Entry point — demo CLI + seed de dados iniciais
+app.py                                  # Entry point — GUI Tkinter (composition root)
+example.py                              # Entry point — demo CLI + seed
+data/                                   # Criado automaticamente — persistência TXT
+  users.txt
+  books.txt
+  carts.txt · cart_items.txt
+  coupons.txt
+  orders.txt · order_items.txt
+  payments.txt
 livraria/
-  database.py                       # get_connection(), init_db() — schema e migração
+  __init__.py
   domain/
     models/
-      user.py                       # User: validate(), hash_password()
-      book.py                       # Book: can_reserve()
-      cart.py                       # Cart / CartItem: total, validate_add()
-      order.py                      # Order / OrderItem: subtotal
-      payment.py                    # Payment: validate()
-      coupon.py                     # Coupon: validate(), apply()
-  infrastructure/
-    unit_of_work.py                 # UnitOfWork — encapsula BEGIN/COMMIT/ROLLBACK
-    repositories/
-      user_repository.py            # SQL: find, exists, save
-      book_repository.py            # SQL: find, all, save, reserve_stock
-      cart_repository.py            # SQL: create, find, add_item, remove_item, clear
-      order_repository.py           # SQL: save, save_items, all
-      payment_repository.py         # SQL: save
-      coupon_repository.py          # SQL: find, save, mark_used
+      user.py                           # User: validate(), hash_password()
+      book.py                           # Book: can_reserve()
+      cart.py                           # Cart / CartItem: total, validate_add()
+      order.py                          # Order / OrderItem: subtotal
+      payment.py                        # Payment: validate()
+      coupon.py                         # Coupon: validate(), apply()
+    ports/
+      repositories.py                   # IUserRepository, IBookRepository, ICartRepository,
+                                        # IOrderRepository, IPaymentRepository, ICouponRepository
+      unit_of_work.py                   # IUnitOfWork
   application/
     services/
-      auth_service.py               # Registro e autenticação
-      book_service.py               # Criação e listagem de livros
-      cart_service.py               # Gestão do carrinho
-      checkout_service.py           # Checkout transacional + preview de desconto
+      auth_service.py                   # Registro e autenticação
+      book_service.py                   # Criação e listagem de livros
+      cart_service.py                   # Gestão do carrinho
+      checkout_service.py               # Checkout transacional + preview de desconto
+  infrastructure/
+    repositories_txt/
+      txt_store.py                      # Helper de I/O: read_all, write_all, append
+      user_repository.py                # TxtUserRepository implements IUserRepository
+      book_repository.py                # TxtBookRepository implements IBookRepository
+      cart_repository.py                # TxtCartRepository implements ICartRepository
+      order_repository.py               # TxtOrderRepository implements IOrderRepository
+      payment_repository.py             # TxtPaymentRepository implements IPaymentRepository
+      coupon_repository.py              # TxtCouponRepository implements ICouponRepository
+    unit_of_work_txt.py                 # TxtUnitOfWork implements IUnitOfWork
   controllers/
-    auth_controller.py              # Delega para AuthService
-    book_controller.py              # Delega para BookService
-    cart_controller.py              # Delega para CartService
-    order_controller.py             # Delega para CheckoutService
+    auth_controller.py                  # Delega para AuthService
+    book_controller.py                  # Delega para BookService
+    cart_controller.py                  # Delega para CartService
+    order_controller.py                 # Delega para CheckoutService
   views/
-    console_view.py                 # Saída formatada no terminal
-    tk_view.py                      # Interface gráfica Tkinter (TkApp)
+    console_view.py                     # Saída formatada no terminal
+    tk_view.py                          # Interface gráfica Tkinter (TkApp)
 ```
 
 ---
@@ -179,9 +201,9 @@ livraria/
 ```
 View coleta usuário/senha
   → AuthController.login()
-    → AuthService.authenticate()
-      → UserRepository.find()      ← único acesso ao banco
-      → User.hash_password()       ← lógica de domínio pura
+    → AuthService.authenticate()       ← depende de IUserRepository (port)
+      → TxtUserRepository.find()       ← lê users.txt
+      → User.hash_password()           ← lógica de domínio pura
         → retorna True/False
 ```
 
@@ -194,25 +216,24 @@ sequenceDiagram
     participant C as OrderController
     participant S as CheckoutService
     participant D as Domínio
-    participant UOW as UnitOfWork
-    participant R as Repositories
+    participant UOW as TxtUnitOfWork
+    participant R as TxtRepositories
 
     U->>V: clica "Finalizar pedido"
     V->>C: checkout(cart_id, method, coupon_code)
     C->>S: checkout(...)
-    S->>R: CouponRepository.find(code)
+    S->>R: find(coupon_code) → coupons.txt
     S->>D: Coupon.validate()
     S->>D: Coupon.apply(total)
     S->>D: Payment.validate(total, method)
-    S->>UOW: begin()
+    S->>UOW: begin() — snapshot de todos os TXT
     loop para cada item do carrinho
-        S->>R: BookRepository.reserve_stock()
+        S->>R: reserve_stock() → books.txt
     end
-    S->>R: OrderRepository.save() + save_items()
-    S->>R: PaymentRepository.save()
-    S->>R: CouponRepository.mark_used()
-    S->>R: CartRepository.clear()
-    S->>UOW: commit()
+    S->>R: save() → orders.txt + order_items.txt
+    S->>R: save(payment) → payments.txt
+    S->>R: clear(cart_id) → cart_items.txt
+    S->>UOW: commit() — descarta snapshot
     S-->>C: Order
     C-->>V: Order
     V->>U: exibe confirmação + desconto aplicado
@@ -225,29 +246,12 @@ Usuário digita no campo "Cupom" (trace no StringVar do Tkinter)
   → TkApp._on_coupon_change()
     → OrderController.preview_discount(cart_total, code)
       → CheckoutService.preview_discount()
-        → CouponRepository.find()
+        → TxtCouponRepository.find()    ← lê coupons.txt
         → Coupon.validate()
         → Coupon.apply(total)
           → retorna (total_descontado, economia)
 View atualiza total instantaneamente (verde = válido, vermelho = inválido)
 ```
-
----
-
-## Schema do banco de dados
-
-```
-users         (username PK, password_hash)
-books         (id PK, title, price, stock CHECK >= 0)
-carts         (id PK)
-cart_items    (cart_id FK, book_id FK, title, quantity CHECK > 0, unit_price)
-coupons       (code PK, discount_pct CHECK > 0..100, active, single_use, used)
-orders        (id PK, total, status, coupon_code FK → coupons)
-order_items   (order_id FK, book_id, title, quantity, unit_price)
-payments      (order_id PK FK, amount, method, status)
-```
-
-Foreign keys ativas via `PRAGMA foreign_keys = ON`. Estoque protegido por `CHECK (stock >= 0)` no banco e por `WHERE stock >= quantity` no UPDATE.
 
 ---
 
@@ -266,11 +270,12 @@ Ao rodar `python app.py`:
 
 ---
 
-## Dados de teste (criados automaticamente pelo `app.py`)
+## Dados criados automaticamente
 
 | Dado | Valor |
 |---|---|
 | Usuário | `admin` |
 | Senha | `123456` |
-| Livro | "Engenharia de Software na Pratica" — R$ 89,90 — estoque 10 |
 | Cupom | `DESC10` — 10% de desconto — uso ilimitado |
+
+O `example.py` também adiciona o livro "Engenharia de Software na Pratica" (R$ 89,90, estoque 10) e realiza um checkout completo com o cupom `DESC10`, resultando em total de R$ 161,82.

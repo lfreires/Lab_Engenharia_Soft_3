@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from livraria.domain.models.cart import Cart
-from livraria.infrastructure.repositories.book_repository import BookRepository
-from livraria.infrastructure.repositories.cart_repository import CartRepository
+from livraria.domain.ports.repositories import IBookRepository, ICartRepository
 
 
 class CartService:
-    def __init__(self, cart_repo: CartRepository, book_repo: BookRepository) -> None:
+    def __init__(self, cart_repo: ICartRepository, book_repo: IBookRepository) -> None:
         self._cart_repo = cart_repo
         self._book_repo = book_repo
 
