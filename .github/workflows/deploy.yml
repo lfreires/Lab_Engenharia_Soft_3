@@ -1,0 +1,93 @@
+name: Deploy Cloud Run
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+
+env:
+  REGION: us-central1
+  REPOSITORY_PATH: us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/livraria/api
+
+jobs:
+  deploy-staging:
+    name: Deploy staging (main)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy staging service
+        run: |
+          IMAGE="${{ env.REPOSITORY_PATH }}:${{ github.sha }}"
+          SERVICE="livraria-api-staging"
+          PROJECT="${{ vars.GCP_PROJECT_ID }}"
+          RUNTIME_SA="livraria-api-runtime@${PROJECT}.iam.gserviceaccount.com"
+
+          gcloud run deploy "$SERVICE" \
+            --project "$PROJECT" \
+            --image "$IMAGE" \
+            --region "${{ env.REGION }}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 5 \
+            --concurrency 80 \
+            --memory 512Mi \
+            --cpu 1 \
+            --service-account "$RUNTIME_SA" \
+            --update-secrets JWT_SECRET=livraria-jwt-secret:latest \
+            --set-env-vars "APP_ENV=staging,PERSISTENCE_BACKEND=firestore,FIRESTORE_PROJECT_ID=${PROJECT},FIRESTORE_DATABASE=firabase-livraria,LOG_LEVEL=INFO"
+
+  deploy-production:
+    name: Deploy production (tag)
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy production service
+        run: |
+          IMAGE="${{ env.REPOSITORY_PATH }}:${{ github.sha }}"
+          SERVICE="livraria-api-prod"
+          PROJECT="${{ vars.GCP_PROJECT_ID }}"
+          RUNTIME_SA="livraria-api-runtime@${PROJECT}.iam.gserviceaccount.com"
+
+          gcloud run deploy "$SERVICE" \
+            --project "$PROJECT" \
+            --image "$IMAGE" \
+            --region "${{ env.REGION }}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 5 \
+            --concurrency 80 \
+            --memory 512Mi \
+            --cpu 1 \
+            --service-account "$RUNTIME_SA" \
+            --update-secrets JWT_SECRET=livraria-jwt-secret:latest \
+            --set-env-vars "APP_ENV=production,PERSISTENCE_BACKEND=firestore,FIRESTORE_PROJECT_ID=${PROJECT},FIRESTORE_DATABASE=firabase-livraria,LOG_LEVEL=INFO"
